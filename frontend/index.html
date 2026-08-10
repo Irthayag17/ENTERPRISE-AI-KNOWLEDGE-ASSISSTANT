@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EVA — Enterprise Knowledge Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #F4F6FA; color: #2A2E35; }
+  #root { min-height: 100vh; display: flex; flex-direction: column; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+const API_BASE = window.EVA_API_BASE || "http://localhost:8000";
+
+const DOMAIN_COLORS = {
+  HR: { bg: "#E8F5E9", color: "#2E7D32" },
+  Legal: { bg: "#EDE7F6", color: "#5E35B1" },
+  Finance: { bg: "#FFF3E0", color: "#E65100" },
+  IT: { bg: "#E3F2FD", color: "#1565C0" },
+};
+
+const SUGGESTIONS = [
+  "What is the maternity leave policy?",
+  "Is there a non-compete clause in the contracts?",
+  "How do I fix a VPN connection issue?",
+  "What was the company's revenue?",
+];
+
+function App() {
+  const [username, setUsername] = useState(null);
+  const [nameInput, setNameInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const sessionId = useRef("session_" + Date.now());
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  const sendMessage = async (text) => {
+    if (!text.trim()) return;
+    const userMsg = { role: "user", content: text };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, session_id: sessionId.current }),
+      });
+      const data = await res.json();
+      setMessages((prev) => [...prev, {
+        role: "eva",
+        content: data.answer,
+        domain: data.domain,
+        exact_quote: data.exact_quote,
+        source: data.source,
+      }]);
+    } catch (err) {
+      setMessages((prev) => [...prev, {
+        role: "eva",
+        content: "Sorry, I couldn't reach the server. Please check the connection and try again.",
+      }]);
+    }
+    setLoading(false);
+  };
+
+  if (!username) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <div style={{
+          maxWidth: 420, width: "100%", background: "white", padding: "48px 40px",
+          borderRadius: 24, border: "1px solid #E8ECF3", textAlign: "center",
+          boxShadow: "0 20px 50px rgba(27,42,74,0.12)"
+        }}>
+          <div style={{
+            width: 72, height: 72, background: "linear-gradient(135deg, #1B2A4A, #3D5A80)",
+            borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 34, margin: "0 auto 20px auto", boxShadow: "0 10px 24px rgba(27,42,74,0.25)"
+          }}>🧭</div>
+          <h1 style={{ fontFamily: "'Space Grotesk', sans-serif", color: "#1B2A4A", fontSize: 26, marginBottom: 4 }}>
+            Welcome to EVA
+          </h1>
+          <p style={{ color: "#6B7280", marginBottom: 28, fontSize: 14 }}>
+            Your Enterprise Virtual Assistant<br />Sign in to get started
+          </p>
+          <input
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && nameInput.trim() && setUsername(nameInput.trim())}
+            placeholder="e.g. Gayathri"
+            style={{
+              width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid #D8E0EE",
+              fontSize: 14, marginBottom: 16, outline: "none"
+            }}
+          />
+          <button
+            onClick={() => nameInput.trim() && setUsername(nameInput.trim())}
+            style={{
+              width: "100%", padding: "12px", borderRadius: 12, border: "none",
+              background: "#1B2A4A", color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer"
+            }}
+          >
+            Sign in →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px", width: "100%" }}>
+      <div style={{
+        background: "linear-gradient(135deg, #1B2A4A 0%, #3D5A80 55%, #5C7FA8 100%)",
+        padding: "32px 36px", borderRadius: 20, marginBottom: 24,
+        boxShadow: "0 10px 30px rgba(27,42,74,0.18)"
+      }}>
+        <p style={{ color: "white", fontSize: 28, fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>🧭 EVA</p>
+        <p style={{ color: "#D7E1F0", fontSize: 14, marginTop: 6 }}>Hi {username}! Ask about HR, Legal, Finance, or IT</p>
+      </div>
+
+      {messages.length === 0 && (
+        <div style={{
+          background: "white", borderRadius: 20, padding: 36, textAlign: "center",
+          border: "1px solid #E8ECF3", marginBottom: 20
+        }}>
+          <div style={{
+            width: 64, height: 64, background: "linear-gradient(135deg, #E8A33D, #C97B2E)",
+            borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 30, margin: "0 auto 14px auto"
+          }}>🧭</div>
+          <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: 20, fontWeight: 700, color: "#1B2A4A", marginBottom: 6 }}>
+            Hi, I'm EVA
+          </div>
+          <div style={{ color: "#6B7280", fontSize: 14, maxWidth: 460, margin: "0 auto 20px auto" }}>
+            Your intelligent assistant for enterprise knowledge. Ask me anything about HR policies, legal contracts, finance reports, or IT support.
+          </div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+            {SUGGESTIONS.map((s, i) => (
+              <button key={i} onClick={() => sendMessage(s)} style={{
+                padding: "8px 16px", borderRadius: 20, border: "1px solid #D8E0EE",
+                background: "white", color: "#1B2A4A", fontSize: 13, cursor: "pointer"
+              }}>{s}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        {messages.map((msg, i) => (
+          <div key={i} style={{
+            display: "flex", gap: 10, margin: "14px 0",
+            flexDirection: msg.role === "user" ? "row-reverse" : "row"
+          }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: "50%", display: "flex",
+              alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0,
+              background: msg.role === "user" ? "#1B2A4A" : "linear-gradient(135deg, #E8A33D, #C97B2E)",
+              color: "white"
+            }}>{msg.role === "user" ? "🙂" : "🧭"}</div>
+            <div style={{
+              maxWidth: "75%", padding: msg.role === "user" ? "12px 18px" : "14px 20px",
+              borderRadius: msg.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+              background: msg.role === "user" ? "#1B2A4A" : "white",
+              color: msg.role === "user" ? "white" : "#2A2E35",
+              border: msg.role === "user" ? "none" : "1px solid #E8ECF3",
+              fontSize: 15, lineHeight: 1.6, whiteSpace: "pre-wrap"
+            }}>
+              {msg.domain && (
+                <span style={{
+                  display: "inline-block", padding: "4px 12px", borderRadius: 20, fontSize: 11,
+                  fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10,
+                  background: DOMAIN_COLORS[msg.domain]?.bg || "#eee",
+                  color: DOMAIN_COLORS[msg.domain]?.color || "#333"
+                }}>{msg.domain}</span>
+              )}
+              <div>{msg.content}</div>
+              {msg.exact_quote && (
+                <details style={{ marginTop: 10, fontSize: 12, color: "#6B7280" }}>
+                  <summary style={{ cursor: "pointer" }}>📄 Verified source excerpt</summary>
+                  <div style={{ marginTop: 6, fontStyle: "italic" }}>"{msg.exact_quote}"</div>
+                  <div style={{ marginTop: 4 }}>Source: {msg.source}</div>
+                </details>
+              )}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ display: "flex", gap: 10, margin: "14px 0" }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: "50%", display: "flex", alignItems: "center",
+              justifyContent: "center", fontSize: 16, background: "linear-gradient(135deg, #E8A33D, #C97B2E)", color: "white"
+            }}>🧭</div>
+            <div style={{
+              padding: "14px 20px", borderRadius: "16px 16px 16px 4px", background: "white",
+              border: "1px solid #E8ECF3", fontSize: 14, color: "#6B7280"
+            }}>EVA is thinking...</div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      <div style={{
+        display: "flex", gap: 10, marginTop: 16, position: "sticky", bottom: 16
+      }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
+          placeholder="Ask EVA about HR, Legal, Finance, or IT..."
+          style={{
+            flex: 1, padding: "14px 20px", borderRadius: 24, border: "1px solid #D8E0EE",
+            fontSize: 14, outline: "none", background: "white",
+            boxShadow: "0 4px 12px rgba(27,42,74,0.06)"
+          }}
+        />
+        <button
+          onClick={() => sendMessage(input)}
+          disabled={loading}
+          style={{
+            padding: "14px 28px", borderRadius: 24, border: "none", background: "#1B2A4A",
+            color: "white", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.6 : 1
+          }}
+        >Send</button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

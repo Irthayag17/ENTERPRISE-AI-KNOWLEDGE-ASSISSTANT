@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import sys, pickle, numpy as np, faiss, torch, os
 from huggingface_hub import snapshot_download
@@ -12,7 +13,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------- Download all assets from HuggingFace Hub at startup ----------
 print("Downloading EVA assets from HuggingFace Hub...")
 ASSETS_DIR = snapshot_download(repo_id="irthayag/eva-assistant-assets", repo_type="dataset")
 print(f"Assets downloaded to: {ASSETS_DIR}")
@@ -96,3 +96,6 @@ def chat(req: ChatRequest):
 def reset(req: ChatRequest):
     conversations[req.session_id] = []
     return {"status": "reset"}
+
+# Serve the React frontend (must be mounted AFTER all /api routes)
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
