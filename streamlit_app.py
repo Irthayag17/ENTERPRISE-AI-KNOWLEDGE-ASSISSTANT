@@ -47,6 +47,9 @@ h1, h2, h3, .eva-title { font-family: 'Space Grotesk', sans-serif; }
     max-width: 75%; border: 1px solid #E8ECF3; font-size: 15px; line-height: 1.6;
     box-shadow: 0 2px 10px rgba(27,42,74,0.06);
 }
+.chat-bubble-eva ul { margin: 6px 0; padding-left: 20px; }
+.chat-bubble-eva li { margin: 3px 0; }
+.chat-bubble-eva p { margin: 4px 0; }
 .domain-badge {
     display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
     letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 10px;
@@ -60,6 +63,35 @@ h1, h2, h3, .eva-title { font-family: 'Space Grotesk', sans-serif; }
 .sidebar-stat-label { font-size: 12px; color: #6B7280; margin-top: 2px; }
 </style>
 """, unsafe_allow_html=True)
+
+
+def render_eva_content(text):
+    """Convert the LLM's '\n'-separated lead-in + '- bullet' answer text into
+    real HTML (<p> / <ul><li>) so it renders correctly inside the raw HTML
+    chat bubble div. Without this, literal '\n' characters collapse into a
+    single paragraph in the browser and '- ' bullets render as plain dashes."""
+    if not text:
+        return ""
+    lines = text.split("\n")
+    html_parts = []
+    in_list = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("- ") or stripped.startswith("• "):
+            if not in_list:
+                html_parts.append("<ul>")
+                in_list = True
+            html_parts.append(f"<li>{stripped[2:]}</li>")
+        else:
+            if in_list:
+                html_parts.append("</ul>")
+                in_list = False
+            if stripped:
+                html_parts.append(f"<p>{stripped}</p>")
+    if in_list:
+        html_parts.append("</ul>")
+    return "".join(html_parts)
+
 
 @st.cache_resource(show_spinner="Loading EVA — this takes a minute on first run...")
 def load_eva_system():
@@ -175,10 +207,11 @@ for msg in st.session_state.display_messages:
         badge_html = ""
         if msg.get("domain"):
             badge_html = f'<span class="domain-badge badge-{msg["domain"]}">{msg["domain"]}</span><br>'
+        rendered_content = render_eva_content(msg["content"])
         st.markdown(f'''
         <div class="chat-row">
             <div class="avatar-circle avatar-eva">🧭</div>
-            <div class="chat-bubble-eva">{badge_html}{msg["content"]}</div>
+            <div class="chat-bubble-eva">{badge_html}{rendered_content}</div>
         </div>''', unsafe_allow_html=True)
         if msg.get("exact_quote"):
             with st.expander("📄 Verified source excerpt"):
