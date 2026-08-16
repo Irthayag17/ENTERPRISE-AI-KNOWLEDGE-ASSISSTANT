@@ -102,11 +102,6 @@ def load_eva_system():
         DistilBertTokenizer, DistilBertForSequenceClassification,
         AutoTokenizer, AutoModelForQuestionAnswering,
     )
-    from eva_chatbot import ask_eva
-import eva_chatbot
-print(f"[EVA DEBUG] Loaded ask_eva from: {eva_chatbot.__file__}")
-print(f"[EVA DEBUG] hallucination_threshold default: {ask_eva.__defaults__}")
-
     ASSETS_DIR = snapshot_download(repo_id="irthayag/eva-assistant-assets", repo_type="dataset")
     sys.path.append(f"{ASSETS_DIR}/src")
 
